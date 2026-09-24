@@ -1,0 +1,13 @@
+.git
+target
+**/node_modules
+**/dist
+**/build
+**/.gradle
+**/.kotlin
+.local
+.local-media
+.env
+*.docx
+*.pdf
+*.png

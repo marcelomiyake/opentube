@@ -1,0 +1,36 @@
+images:
+  identity: opentube-identity:dev
+  video: opentube-video:dev
+  worker: opentube-worker:dev
+  web: opentube-web:dev
+  pullPolicy: IfNotPresent
+
+postgres:
+  image: postgres:16.6-alpine
+rabbitmq:
+  image: rabbitmq:3.13-management
+minio:
+  image: ghcr.io/coollabsio/minio:RELEASE.2025-10-15T17-29-55Z
+
+resources:
+  identity:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+  video:
+    requests: { cpu: 100m, memory: 192Mi }
+    limits: { cpu: "1", memory: 768Mi }
+  worker:
+    requests: { cpu: 200m, memory: 256Mi }
+    limits: { cpu: "2", memory: 2Gi }
+  web:
+    requests: { cpu: 25m, memory: 32Mi }
+    limits: { cpu: 250m, memory: 128Mi }
+  postgres:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 1Gi }
+  rabbitmq:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 1Gi }
+  minio:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 1Gi }

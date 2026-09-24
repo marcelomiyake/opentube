@@ -1,0 +1,31 @@
+FROM rust:1.98.1-bookworm AS build
+WORKDIR /src
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+COPY identity-service ./identity-service
+COPY video-service ./video-service
+COPY transcoding-worker ./transcoding-worker
+RUN cargo build --release --workspace
+
+FROM debian:bookworm-slim AS identity-service
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 10001 --create-home app
+COPY --from=build /src/target/release/identity-service /usr/local/bin/identity-service
+USER 10001:10001
+EXPOSE 8081
+ENTRYPOINT ["/usr/local/bin/identity-service"]
+
+FROM debian:bookworm-slim AS video-service
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 10001 --create-home app
+COPY --from=build /src/target/release/video-service /usr/local/bin/video-service
+USER 10001:10001
+EXPOSE 8082
+ENTRYPOINT ["/usr/local/bin/video-service"]
+
+FROM debian:bookworm-slim AS transcoding-worker
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates ffmpeg && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 10001 --create-home app
+COPY --from=build /src/target/release/transcoding-worker /usr/local/bin/transcoding-worker
+USER 10001:10001
+ENTRYPOINT ["/usr/local/bin/transcoding-worker"]

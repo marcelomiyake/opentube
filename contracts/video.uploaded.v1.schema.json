@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opentube.local/contracts/video.uploaded.v1.schema.json",
+  "title": "video.uploaded.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "video_id", "source_object_key", "content_type", "size_bytes", "schema_version", "occurred_at"],
+  "properties": {
+    "event_id": {"type": "string", "format": "uuid"},
+    "video_id": {"type": "string", "format": "uuid"},
+    "source_object_key": {"type": "string", "minLength": 1},
+    "content_type": {"const": "video/mp4"},
+    "size_bytes": {"type": "integer", "minimum": 1, "maximum": 1073741824},
+    "schema_version": {"const": 1},
+    "occurred_at": {"type": "string", "format": "date-time"}
+  }
+}
