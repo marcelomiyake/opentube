@@ -1,0 +1,191 @@
+openapi: 3.1.0
+info:
+  title: OpenTube API
+  version: 1.0.0
+  description: Local learning MVP API for identity and public video lifecycle.
+servers:
+  - url: http://127.0.0.1:18080
+paths:
+  /v1/login:
+    post:
+      summary: Sign in as the seeded creator
+      operationId: login
+      tags: [identity]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: {type: string, format: email}
+                password: {type: string, minLength: 1}
+      responses:
+        '200':
+          description: Short-lived access token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, token_type, expires_in]
+                properties:
+                  access_token: {type: string}
+                  token_type: {const: Bearer}
+                  expires_in: {type: integer}
+        '401': {description: Invalid credentials}
+  /v1/videos:
+    get:
+      summary: List ready videos in stable publication order
+      operationId: listVideos
+      tags: [videos]
+      parameters:
+        - name: query
+          in: query
+          schema: {type: string, maxLength: 200}
+        - name: cursor
+          in: query
+          schema: {type: string}
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 50, default: 24}
+      responses:
+        '200':
+          description: One stable keyset-paginated page
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/VideoSummary'}
+                  next_cursor: {type: [string, 'null']}
+    post:
+      summary: Create an upload and return a presigned MinIO URL
+      operationId: createVideo
+      tags: [videos]
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, content_type, size_bytes]
+              properties:
+                title: {type: string, minLength: 1, maxLength: 120}
+                description: {type: string, maxLength: 2000, default: ''}
+                content_type: {const: video/mp4}
+                size_bytes: {type: integer, minimum: 1, maximum: 1073741824}
+      responses:
+        '201':
+          description: Upload reserved; PUT bytes directly to the returned URL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, status, upload_url, upload_expires_at]
+                properties:
+                  id: {type: string, format: uuid}
+                  status: {const: pending_upload}
+                  upload_url: {type: string, format: uri}
+                  upload_expires_at: {type: string, format: date-time}
+        '400': {description: Unsupported content type, invalid fields, or size above 1 GiB}
+        '401': {description: Missing or invalid creator token}
+  /v1/videos/{video_id}/complete:
+    post:
+      summary: Validate the uploaded object and enqueue processing
+      operationId: completeUpload
+      tags: [videos]
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: video_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '202': {description: Upload accepted for asynchronous processing}
+        '404': {description: Video is not owned by the caller}
+        '409': {description: Upload object is missing or has the wrong size}
+  /v1/videos/{video_id}:
+    get:
+      summary: Read a public ready video
+      operationId: getVideo
+      tags: [videos]
+      parameters:
+        - name: video_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Ready video metadata and HLS master playlist URL
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/VideoSummary'}
+        '404': {description: Video does not exist or is not ready}
+  /internal/videos/{video_id}/processing-result:
+    post:
+      summary: Commit a worker processing result
+      operationId: reportProcessingResult
+      tags: [internal]
+      security: [{workerAuth: []}]
+      parameters:
+        - name: video_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - name: idempotency-key
+          in: header
+          required: true
+          schema: {type: string, minLength: 1}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [result]
+              properties:
+                result: {type: string, enum: [ready, failed]}
+                hls_prefix: {type: string}
+                failure_code: {type: string}
+      responses:
+        '200': {description: Idempotent result stored}
+        '401': {description: Invalid worker token}
+  /health/live:
+    get:
+      summary: Liveness probe
+      tags: [health]
+      responses:
+        '200': {description: Process is alive}
+  /health/ready:
+    get:
+      summary: Readiness probe
+      tags: [health]
+      responses:
+        '200': {description: Required dependencies are ready}
+        '503': {description: A required dependency is unavailable}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    workerAuth:
+      type: http
+      scheme: bearer
+      description: Local worker-only token; never exposed to public clients.
+  schemas:
+    VideoSummary:
+      type: object
+      required: [id, title, description, creator, published_at, playback_url]
+      properties:
+        id: {type: string, format: uuid}
+        title: {type: string}
+        description: {type: string}
+        creator: {type: string}
+        published_at: {type: string, format: date-time}
+        playback_url: {type: string, format: uri}

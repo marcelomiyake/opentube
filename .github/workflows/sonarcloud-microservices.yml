@@ -1,0 +1,140 @@
+name: SonarQube Cloud workspace and microservice analysis
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sonar-microservices-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: SonarCloud - ${{ matrix.component }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: rust-workspace
+            service: .
+            project_key: marcelomiyake_opentube-rust
+            coverage_exclusions: ""
+            source_inclusions: "**/*.rs"
+            workspace: true
+          - component: identity-service
+            service: identity-service
+            project_key: marcelomiyake_opentube_identity-service
+            coverage_exclusions: ""
+            source_inclusions: ""
+            workspace: false
+          - component: video-service
+            service: video-service
+            project_key: marcelomiyake_opentube_video-service
+            coverage_exclusions: ""
+            source_inclusions: ""
+            workspace: false
+          - component: transcoding-worker
+            service: transcoding-worker
+            project_key: marcelomiyake_opentube_transcoding-worker
+            coverage_exclusions: ""
+            source_inclusions: ""
+            workspace: false
+    env:
+      OPENTUBE_TEST_DATABASE_URL: postgres://opentube:${{ github.run_id }}@localhost:5432/opentube_identity_test
+      OPENTUBE_TEST_VIDEO_DATABASE_URL: postgres://opentube:${{ github.run_id }}@localhost:5432/opentube_video_test
+      OPENTUBE_TEST_RABBITMQ_URL: amqp://opentube:${{ github.run_id }}@localhost:5672/%2f
+      OPENTUBE_TEST_S3_ENDPOINT: http://localhost:9000
+      OPENTUBE_TEST_S3_BUCKET: opentube-ci
+      AWS_ACCESS_KEY_ID: opentube
+      AWS_SECRET_ACCESS_KEY: ${{ github.run_id }}
+      AWS_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_EC2_METADATA_DISABLED: "true"
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: opentube
+          POSTGRES_PASSWORD: ${{ github.run_id }}
+          POSTGRES_DB: opentube_identity_test
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U opentube -d opentube_identity_test"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      rabbitmq:
+        image: rabbitmq:4.1-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: opentube
+          RABBITMQ_DEFAULT_PASS: ${{ github.run_id }}
+        ports: [5672:5672]
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      rustfs:
+        image: rustfs/rustfs:1.0.0
+        env:
+          RUSTFS_ACCESS_KEY: opentube
+          RUSTFS_SECRET_KEY: ${{ github.run_id }}
+          RUSTFS_ADDRESS: 0.0.0.0:9000
+          RUSTFS_VOLUMES: /data/rustfs{0..3}
+          RUSTFS_UNSAFE_BYPASS_DISK_CHECK: "true"
+        ports: [9000:9000]
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+      - name: Create video service test database
+        run: docker exec "${{ job.services.postgres.id }}" createdb -U opentube opentube_video_test
+      - name: Wait for RustFS test service
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://localhost:9000/health/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs "${{ job.services.rustfs.id }}"
+          exit 1
+      - name: Install Rust coverage tool
+        run: cargo install cargo-llvm-cov --version 0.9.1 --locked
+      - name: Install SonarScanner for Cargo
+        run: cargo install cargo-sonar-scanner --version 1.0.0 --locked
+      - name: Generate ${{ matrix.component }} coverage
+        working-directory: ${{ matrix.service }}
+        env:
+          WORKSPACE_COVERAGE: ${{ matrix.workspace }}
+        run: |
+          mkdir -p target/coverage
+          coverage_args=()
+          if [[ "$WORKSPACE_COVERAGE" == "true" ]]; then
+            coverage_args+=(--workspace)
+          fi
+          cargo llvm-cov "${coverage_args[@]}" --lcov --output-path target/coverage/lcov.info -- --test-threads=1
+      - name: Analyze ${{ matrix.component }}
+        working-directory: ${{ matrix.service }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          PROJECT_KEY: ${{ matrix.project_key }}
+          COVERAGE_EXCLUSIONS: ${{ matrix.coverage_exclusions }}
+          SOURCE_INCLUSIONS: ${{ matrix.source_inclusions }}
+        run: |
+          scanner_args=(
+            --sonar-organization marcelomiyake
+            --sonar-project-key "$PROJECT_KEY"
+            -Dsonar.rust.lcov.reportPaths=target/coverage/lcov.info
+          )
+          if [[ -n "$COVERAGE_EXCLUSIONS" ]]; then
+            scanner_args+=("-Dsonar.coverage.exclusions=$COVERAGE_EXCLUSIONS")
+          fi
+          if [[ -n "$SOURCE_INCLUSIONS" ]]; then
+            scanner_args+=("-Dsonar.inclusions=$SOURCE_INCLUSIONS")
+          fi
+          cargo sonar-scanner "${scanner_args[@]}"

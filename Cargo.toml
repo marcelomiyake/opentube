@@ -1,0 +1,32 @@
+[workspace]
+members = ["crates/platform-core", "identity-service", "video-service", "transcoding-worker"]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+version = "0.1.0"
+
+[workspace.dependencies]
+argon2 = "0.5"
+axum = { version = "0.8", features = ["macros"] }
+aws-config = "1.8"
+aws-sdk-s3 = "1.100"
+base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+dotenvy = "0.15"
+futures-util = "0.3"
+http = "1"
+jsonwebtoken = "9.3"
+lapin = "2.5"
+password-hash = { version = "0.5", features = ["rand_core"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "json", "migrate", "macros"] }
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.6", features = ["trace", "cors"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+uuid = { version = "1", features = ["v4", "serde"] }
