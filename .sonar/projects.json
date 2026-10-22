@@ -1,0 +1,23 @@
+{
+  "policy": "Use a Sonar project for each real component; retain existing aggregate history.",
+  "projects": [
+    {
+      "component": "web-frontend",
+      "directory": "web-frontend",
+      "key": "marcelomiyake_opentube_web-frontend",
+      "kind": "web"
+    },
+    {
+      "component": "android-mobile-frontend",
+      "directory": "android-mobile-frontend",
+      "key": "marcelomiyake_opentube_android-mobile-frontend",
+      "kind": "android"
+    },
+    {
+      "component": "android-tv-frontend",
+      "directory": "android-tv-frontend",
+      "key": "marcelomiyake_opentube_android-tv-frontend",
+      "kind": "android"
+    }
+  ]
+}
