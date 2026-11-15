@@ -1,6 +1,6 @@
 # Verification record
 
-Verification reports distinguish planned checks from observed results. The synthetic test fixture is generated on demand with FFmpeg; no third-party or personal video is bundled. See [the observed results](results.md) and the separate [JEV readiness assessment](jev-readiness.md).
+Verification reports distinguish planned checks from observed results. The synthetic test fixture is generated on demand with FFmpeg; no third-party or personal video is bundled. See [the observed results](results.md) and the separate [JEV readiness assessment](jev-readiness.md). The 2026-11-15 Node 26.13.1 and dependency update is recorded in [dependency update verification](dependency-update-2026-11-15.md).
 
 Browser quality and search metadata are reported in [Lighthouse and SEO META verification](lighthouse.md), separately from unit/KinD, SonarQube, and JEV evidence.
 
