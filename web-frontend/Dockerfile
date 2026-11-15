@@ -1,4 +1,4 @@
-FROM node:22-bookworm AS build
+FROM node:26.13.1-bookworm AS build
 WORKDIR /app
 RUN npm install --global --ignore-scripts pnpm@11.19.0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./

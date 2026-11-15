@@ -36,6 +36,9 @@ android {
 }
 
 dependencies {
+    constraints {
+        implementation(libs.guava) { because("GHSA-xxph-c9ww-hj94: media3 pulls a vulnerable Guava") }
+    }
     implementation(platform(libs.compose.bom))
     androidTestImplementation(platform(libs.compose.bom))
     implementation(libs.activity.compose)
