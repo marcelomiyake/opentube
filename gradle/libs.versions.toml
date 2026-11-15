@@ -9,6 +9,7 @@ tv-foundation = "1.0.0"
 tv-material = "1.0.1"
 junit = "4.13.2"
 json = "20240303"
+guava = "33.7.2-android"
 test-runner = "1.6.2"
 test-junit = "1.2.1"
 uiautomator = "2.3.0"
@@ -28,6 +29,7 @@ tv-foundation = { module = "androidx.tv:tv-foundation", version.ref = "tv-founda
 tv-material = { module = "androidx.tv:tv-material", version.ref = "tv-material" }
 junit = { module = "junit:junit", version.ref = "junit" }
 json = { module = "org.json:json", version.ref = "json" }
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
 android-test-runner = { module = "androidx.test:runner", version.ref = "test-runner" }
 android-test-junit = { module = "androidx.test.ext:junit", version.ref = "test-junit" }
 android-test-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "uiautomator" }
